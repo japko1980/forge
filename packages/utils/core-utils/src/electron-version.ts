@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 
 import debug from 'debug';
 import findUp from 'find-up';
@@ -9,7 +9,7 @@ import { safeYarnOrNpm } from './yarn-or-npm';
 
 const d = debug('electron-forge:electron-version');
 
-const electronPackageNames = ['electron-prebuilt-compile', 'electron-prebuilt', 'electron-nightly', 'electron'];
+const electronPackageNames = ['electron-nightly', 'electron'];
 
 type PackageJSONWithDeps = {
   devDependencies?: Record<string, string>;

@@ -41,7 +41,7 @@ free to ask constructive questions. (This applies to any open issue.)
 The easiest way to test changes to Forge during development is by symlinking your local packages
 to a sample Forge project.
 
-To create symlinks your local Forge packages, use the `yarn link:prepare` command after
+To create symlinks for your local Forge packages, use the `yarn link:prepare` command after
 building Forge.
 
 ```sh
@@ -51,13 +51,20 @@ yarn link:prepare
 
 Then, you want to initialize a new project with the `electron-forge init` command (which is the
 underlying CLI command for `create-electron-app`). To use the symlinks you created in the last step,
-pass in the `LINK_FORGE_DEPENDENCIES_ON_INIT` environment variable.
+pass in the `LINK_FORGE_DEPENDENCIES_ON_INIT=1` environment variable.
 
 You can choose to run this command via your local build as shown below or run the production init
 for versions 6.0.1 and up.
 
 ```sh
 LINK_FORGE_DEPENDENCIES_ON_INIT=1 node path/to/forge/packages/api/cli/dist/electron-forge-init.js my-app
+```
+
+To link an existing project to your local Forge packages, use the `yarn link:prepare` command as listed
+above, and then run the following command in your project:
+
+```sh
+yarn link @electron-forge/core --link-folder=path/to/forge/.links
 ```
 
 Forge commands executed in your `my-app` sample project should reflect any changes in your local
@@ -160,3 +167,20 @@ The `lerna:publish` script will automatically increment the next package version
 - Target the `main` branch.
 - [Automatically generated release notes](https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes)
   against the previous Forge release.
+
+### Adding a new `@electron-forge` package
+
+Occasionally, we add new packages to the `@electron-forge` monorepo. Before publishing, ensure that all
+version numbers for both the package itself and its dependencies match the _current_ version of Electron
+Forge (e.g. if the current version is `v7.0.0` and you want to add the package in `v7.1.0`, please publish
+`v7.0.0` first).
+
+Then, manually publish the package to the current Forge version using `npm publish --access public`.
+Once this version is published, you can continue with the normal release process as usual.
+
+> [!NOTE]
+> To verify that the publish configuration is correct, first run `npm publish --dry-run`
+> before publishing.
+
+We do this manual publish step first to avoid errors with attempting to publish a non existent package
+with Lerna.

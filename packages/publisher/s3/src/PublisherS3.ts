@@ -1,10 +1,10 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
-import { S3Client } from '@aws-sdk/client-s3';
+import { PutObjectCommandInput, S3Client } from '@aws-sdk/client-s3';
 import { Progress, Upload } from '@aws-sdk/lib-storage';
 import { Credentials } from '@aws-sdk/types';
-import { PublisherBase, PublisherOptions } from '@electron-forge/publisher-base';
+import { PublisherOptions, PublisherStatic } from '@electron-forge/publisher-static';
 import debug from 'debug';
 
 import { PublisherS3Config } from './Config';
@@ -18,8 +18,12 @@ type S3Artifact = {
   arch: string;
 };
 
-export default class PublisherS3 extends PublisherBase<PublisherS3Config> {
+export default class PublisherS3 extends PublisherStatic<PublisherS3Config> {
   name = 's3';
+
+  private s3KeySafe = (key: string) => {
+    return key.replace(/@/g, '_').replace(/\//g, '_');
+  };
 
   async publish({ makeResults, setStatusLine }: PublisherOptions): Promise<void> {
     const artifacts: S3Artifact[] = [];
@@ -32,7 +36,7 @@ export default class PublisherS3 extends PublisherBase<PublisherS3Config> {
       artifacts.push(
         ...makeResult.artifacts.map((artifact) => ({
           path: artifact,
-          keyPrefix: this.config.folder || makeResult.packageJSON.version,
+          keyPrefix: this.config.folder || this.s3KeySafe(makeResult.packageJSON.name),
           platform: makeResult.platform,
           arch: makeResult.arch,
         }))
@@ -55,14 +59,18 @@ export default class PublisherS3 extends PublisherBase<PublisherS3Config> {
     await Promise.all(
       artifacts.map(async (artifact) => {
         d('uploading:', artifact.path);
+        const params: PutObjectCommandInput = {
+          Body: fs.createReadStream(artifact.path),
+          Bucket: this.config.bucket,
+          Key: this.keyForArtifact(artifact),
+        };
+        if (!this.config.omitAcl) {
+          params.ACL = this.config.public ? 'public-read' : 'private';
+        }
         const uploader = new Upload({
           client: s3Client,
-          params: {
-            Body: fs.createReadStream(artifact.path),
-            Bucket: this.config.bucket,
-            Key: this.keyForArtifact(artifact),
-            ACL: this.config.public ? 'public-read' : 'private',
-          },
+          leavePartsOnError: true,
+          params,
         });
 
         uploader.on('httpUploadProgress', (progress: Progress) => {
@@ -77,14 +85,6 @@ export default class PublisherS3 extends PublisherBase<PublisherS3Config> {
         updateStatusLine();
       })
     );
-  }
-
-  keyForArtifact(artifact: S3Artifact): string {
-    if (this.config.keyResolver) {
-      return this.config.keyResolver(path.basename(artifact.path), artifact.platform, artifact.arch);
-    }
-
-    return `${artifact.keyPrefix}/${path.basename(artifact.path)}`;
   }
 
   generateCredentials(): Credentials | undefined {

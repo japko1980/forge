@@ -1,6 +1,6 @@
-import { exec } from 'child_process';
-import os from 'os';
-import path from 'path';
+import { exec } from 'node:child_process';
+import os from 'node:os';
+import path from 'node:path';
 
 import { utils as forgeUtils } from '@electron-forge/core';
 import { ForgeListrTask } from '@electron-forge/shared-types';
@@ -33,9 +33,7 @@ const NPM_ALLOWLISTED_VERSIONS = {
   linux: '>= 5.4.0',
 };
 const YARN_ALLOWLISTED_VERSIONS = {
-  all: '0.23.3 || 0.24.6 || >= 1.0.0',
-  darwin: '0.27.5',
-  linux: '0.27.5',
+  all: '>= 1.0.0',
 };
 
 export function checkValidPackageManagerVersion(packageManager: string, version: string, allowlistedVersions: string) {
@@ -119,7 +117,7 @@ export async function checkSystem(task: ForgeListrTask<never>) {
         concurrent: true,
         exitOnError: false,
         rendererOptions: {
-          collapse: true,
+          collapseSubtasks: true,
         },
       }
     );

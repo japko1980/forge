@@ -10,12 +10,13 @@ import {
   ResolvedForgeConfig,
   StartResult,
 } from '@electron-forge/shared-types';
+import { autoTrace } from '@electron-forge/tracer';
 import chalk from 'chalk';
 import debug from 'debug';
 
 import { StartOptions } from '../api';
 
-import requireSearch from './require-search';
+import importSearch from './import-search';
 
 const d = debug('electron-forge:plugins');
 
@@ -24,30 +25,45 @@ function isForgePlugin(plugin: IForgePlugin | unknown): plugin is IForgePlugin {
 }
 
 export default class PluginInterface implements IForgePluginInterface {
-  private plugins: IForgePlugin[];
+  private plugins: IForgePlugin[] = [];
+  private _pluginPromise: Promise<void> = Promise.resolve();
 
   private config: ResolvedForgeConfig;
 
-  constructor(dir: string, forgeConfig: ResolvedForgeConfig) {
-    this.plugins = forgeConfig.plugins.map((plugin) => {
-      if (isForgePlugin(plugin)) {
-        return plugin;
-      }
+  static async create(dir: string, forgeConfig: ResolvedForgeConfig): Promise<PluginInterface> {
+    const int = new PluginInterface(dir, forgeConfig);
+    await int._pluginPromise;
+    return int;
+  }
 
-      if (typeof plugin === 'object' && 'name' in plugin && 'config' in plugin) {
-        const { name: pluginName, config: opts } = plugin;
-        if (typeof pluginName !== 'string') {
-          throw new Error(`Expected plugin[0] to be a string but found ${pluginName}`);
+  private constructor(dir: string, forgeConfig: ResolvedForgeConfig) {
+    this._pluginPromise = Promise.all(
+      forgeConfig.plugins.map(async (plugin): Promise<IForgePlugin> => {
+        if (isForgePlugin(plugin)) {
+          return plugin;
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const Plugin = requireSearch<any>(dir, [pluginName]);
-        if (!Plugin) {
-          throw new Error(`Could not find module with name: ${pluginName}. Make sure it's listed in the devDependencies of your package.json`);
-        }
-        return new Plugin(opts);
-      }
 
-      throw new Error(`Expected plugin to either be a plugin instance or a { name, config } object but found ${plugin}`);
+        if (typeof plugin === 'object' && 'name' in plugin && 'config' in plugin) {
+          const { name: pluginName, config: opts } = plugin;
+          if (typeof pluginName !== 'string') {
+            throw new Error(`Expected plugin[0] to be a string but found ${pluginName}`);
+          }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const Plugin = await importSearch<any>(dir, [pluginName]);
+          if (!Plugin) {
+            throw new Error(`Could not find module with name: ${pluginName}. Make sure it's listed in the devDependencies of your package.json`);
+          }
+          return new Plugin(opts);
+        }
+
+        throw new Error(`Expected plugin to either be a plugin instance or a { name, config } object but found ${JSON.stringify(plugin)}`);
+      })
+    ).then((plugins) => {
+      this.plugins = plugins;
+      for (const plugin of this.plugins) {
+        plugin.init(dir, forgeConfig);
+      }
+      return;
     });
     // TODO: fix hack
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -58,11 +74,6 @@ export default class PluginInterface implements IForgePluginInterface {
       configurable: false,
       writable: false,
     });
-
-    for (const plugin of this.plugins) {
-      plugin.init(dir, forgeConfig);
-    }
-
     this.triggerHook = this.triggerHook.bind(this);
     this.overrideStartLogic = this.overrideStartLogic.bind(this);
   }
@@ -82,6 +93,7 @@ export default class PluginInterface implements IForgePluginInterface {
   }
 
   async getHookListrTasks<Hook extends keyof ForgeSimpleHookSignatures>(
+    childTrace: typeof autoTrace,
     hookName: Hook,
     hookArgs: ForgeSimpleHookSignatures[Hook]
   ): Promise<ForgeListrTaskDefinition[]> {
@@ -95,15 +107,18 @@ export default class PluginInterface implements IForgePluginInterface {
           for (const hook of hooks) {
             tasks.push({
               title: `${chalk.cyan(`[plugin-${plugin.name}]`)} ${(hook as any).__hookName || `Running ${chalk.yellow(hookName)} hook`}`,
-              task: async (_, task) => {
-                if ((hook as any).__hookName) {
-                  // Also give it the task
-                  await (hook as any).call(task, this.config, ...(hookArgs as any[]));
-                } else {
-                  await hook(this.config, ...hookArgs);
+              task: childTrace(
+                { name: 'forge-plugin-hook', category: '@electron-forge/hooks', extraDetails: { plugin: plugin.name, hook: hookName } },
+                async (_, __, task) => {
+                  if ((hook as any).__hookName) {
+                    // Also give it the task
+                    return await (hook as any).call(task, this.config, ...(hookArgs as any[]));
+                  } else {
+                    await hook(this.config, ...hookArgs);
+                  }
                 }
-              },
-              options: {},
+              ),
+              rendererOptions: {},
             });
           }
         }

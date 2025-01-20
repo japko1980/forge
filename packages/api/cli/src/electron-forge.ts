@@ -9,7 +9,7 @@ import './util/terminate';
 
 import { checkSystem } from './util/check-system';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const metadata = require('../package.json');
 
 const originalSC = program.executeSubCommand.bind(program);
@@ -30,16 +30,15 @@ program.executeSubCommand = (argv: string[], args: string[], unknown: string[]) 
 };
 
 program
-  .version(metadata.version)
+  .version(metadata.version, '-V, --version', 'Output the current version')
   .option('--verbose', 'Enables verbose mode')
+  .helpOption('-h, --help', 'Output usage information')
   .command('init', 'Initialize a new Electron application')
   .command('import', 'Attempts to navigate you through the process of importing an existing project to "electron-forge"')
-  .command('lint', 'Lints the current Electron application')
+  .command('start', 'Start the current Electron application in development mode')
   .command('package', 'Package the current Electron application')
   .command('make', 'Generate distributables for the current Electron application')
-  .command('start', 'Start the current Electron application')
-  .command('publish', 'Publish the current Electron application to GitHub')
-  .command('install', 'Install an Electron application from GitHub')
+  .command('publish', 'Publish the current Electron application')
   .on('command:*', (commands) => {
     if (!program._execs.has(commands[0])) {
       console.error();
@@ -67,7 +66,7 @@ program
 
   await runner.run();
 
-  if (runner.err.length) {
+  if (runner.errors.length) {
     console.error(
       chalk.red(`\nIt looks like you are missing some dependencies you need to get Electron running.
 Make sure you have git installed and Node.js version ${metadata.engines.node}`)

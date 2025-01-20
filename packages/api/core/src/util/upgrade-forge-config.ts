@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 
 import { ForgeConfig, ForgePlatform, IForgeResolvableMaker, IForgeResolvablePublisher } from '@electron-forge/shared-types';
 
@@ -167,10 +167,6 @@ export function updateUpgradedForgeDevDeps(packageJSON: ForgePackageJSON, devDep
   devDeps = devDeps.concat(
     (forgeConfig.publishers as IForgeResolvablePublisher[]).map((publisher: IForgeResolvablePublisher) => siblingDep(path.basename(publisher.name)))
   );
-
-  if (Object.keys(packageJSON.devDependencies).find((dep: string) => dep === 'electron-prebuilt-compile')) {
-    devDeps = devDeps.concat(siblingDep('plugin-compile'));
-  }
 
   return devDeps;
 }

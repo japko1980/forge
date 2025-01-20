@@ -1,6 +1,6 @@
 ## Electron Forge
 
-[![Build Status](https://github.com/electron/forge/workflows/CI/badge.svg)](https://github.com/electron/forge/actions?query=workflow:CI)
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/electron/forge/tree/main.svg?style=shield)](https://dl.circleci.com/status-badge/redirect/gh/electron/forge/tree/main)
 [![Discord](https://img.shields.io/discord/745037351163527189?color=blueviolet&logo=discord)](https://discord.com/invite/APGC3k5yaH)
 [![npm version](https://img.shields.io/npm/v/@electron-forge/cli)](https://npm.im/@electron-forge/cli)
 [![license](https://img.shields.io/github/license/electron/forge.svg)](https://github.com/electron/forge/blob/main/LICENSE)
@@ -24,15 +24,11 @@ jump right in to Electron development.
 
 ---
 
-_Note: The major version bump between v5.0.0 and v6.0.0 contains major breaking API changes and improvements. If you are new to Forge, we highly recommend using the latest version. If using an older version of Forge, we recommend upgrading to v6.0.0 or later._
-
----
-
 # Getting Started
 
-Pre-requisities:
+Pre-requisites:
 
-- Node 14.17.5 or higher
+- Node 16.4.0 or higher
 - Git
 
 If you have a more recent version of `npm` or `yarn`, you can use
@@ -46,15 +42,6 @@ npx create-electron-app my-new-app
 yarn create electron-app my-new-app
 
 # then
-cd my-new-app
-npm start
-```
-
-Alternatively (less recommended):
-
-```bash
-npm install -g @electron-forge/cli
-electron-forge init my-new-app
 cd my-new-app
 npm start
 ```
@@ -81,7 +68,7 @@ With these goals in mind, under the hood this project uses, among others:
 - [`@electron/rebuild`](https://github.com/electron/rebuild):
   Automatically recompiles native Node.js modules against the correct
   Electron version.
-- [Electron Packager](https://github.com/electron/electron-packager):
+- [`@electron/packager`](https://github.com/electron/packager):
   Customizes and bundles your Electron app to get it ready for distribution.
 
 ## Contributing

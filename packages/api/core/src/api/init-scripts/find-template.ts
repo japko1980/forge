@@ -2,7 +2,7 @@ import { ForgeTemplate } from '@electron-forge/shared-types';
 import debug from 'debug';
 import resolvePackage from 'resolve-package';
 
-import { PossibleModule } from '../../util/require-search';
+import { PossibleModule } from '../../util/import-search';
 
 const d = debug('electron-forge:init:find-template');
 
@@ -32,12 +32,12 @@ export const findTemplate = async (dir: string, template: string): Promise<Forge
     }
   }
   if (!foundTemplate) {
-    throw new Error(`Failed to locate custom template: "${template}"\n\nTry \`npm install -g @electron-forge/template-${template}\``);
+    throw new Error(`Failed to locate custom template: "${template}".`);
   }
 
   d(`found template module at: ${templateModulePath}`);
 
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const templateModule: PossibleModule<ForgeTemplate> = require(templateModulePath);
 
   return templateModule.default || templateModule;

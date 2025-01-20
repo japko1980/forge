@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 import { OctokitOptions } from '@octokit/core/dist-types/types.d';
 import { retry } from '@octokit/plugin-retry';
 import { Octokit } from '@octokit/rest';
@@ -44,5 +46,24 @@ export default class GitHub {
     const RetryableOctokit = Octokit.plugin(retry);
     const github = new RetryableOctokit(options);
     return github;
+  }
+
+  // Based on https://github.com/cli/cli/blob/b07f955c23fb54c400b169d39255569e240b324e/pkg/cmd/release/upload/upload.go#L131-L153
+  static sanitizeName(name: string): string {
+    return (
+      path
+        .basename(name)
+        // Remove diacritics (e.g. é -> e)
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        // Replace special characters with dot
+        .replace(/[^\w_.@+-]+/g, '.')
+        // Replace multiple dots with a single dot
+        .replace(/\.+/g, '.')
+        // Remove leading dot if present
+        .replace(/^\./g, '')
+        // Remove trailing dot if present
+        .replace(/\.$/g, '')
+    );
   }
 }

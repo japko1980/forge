@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 
 import { ForgeArch, ForgePlatform, IForgeMaker, ResolvedForgeConfig } from '@electron-forge/shared-types';
 import fs from 'fs-extra';
@@ -69,9 +69,9 @@ export default abstract class Maker<C> implements IForgeMaker {
 
   // TODO: Remove this, it is an eye-sore and is a nasty hack to provide forge
   //       v5 style functionality in the new API
-  prepareConfig(targetArch: ForgeArch): void {
+  async prepareConfig(targetArch: ForgeArch): Promise<void> {
     if (typeof this.configOrConfigFetcher === 'function') {
-      this.config = (this.configOrConfigFetcher as unknown as (arch: ForgeArch) => C)(targetArch);
+      this.config = await Promise.resolve((this.configOrConfigFetcher as (arch: ForgeArch) => C)(targetArch));
     } else {
       this.config = this.configOrConfigFetcher as C;
     }
@@ -91,6 +91,11 @@ export default abstract class Maker<C> implements IForgeMaker {
       throw new Error(`Maker ${this.name} did not implement the isSupportedOnCurrentPlatform method`);
     }
     return true;
+  }
+
+  clone(): Maker<C> {
+    const MakerClass = (this as any).constructor;
+    return new MakerClass(this.configOrConfigFetcher, this.platformsToMakeOn);
   }
 
   /**
@@ -158,7 +163,7 @@ export default abstract class Maker<C> implements IForgeMaker {
     try {
       require(module);
       return true;
-    } catch (e) {
+    } catch {
       // Package doesn't exist -- must not be installable on this platform
       return false;
     }
@@ -169,7 +174,7 @@ export default abstract class Maker<C> implements IForgeMaker {
    * prerelease information for use in Windows apps.
    */
   normalizeWindowsVersion(version: string): string {
-    const noPrerelease = version.replace(/-.*/, '');
+    const noPrerelease = version.replace(/[-+].*/, '');
     return `${noPrerelease}.0`;
   }
 }

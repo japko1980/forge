@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 
 import { safeYarnOrNpm } from '@electron-forge/core-utils';
 import { ForgeTemplate } from '@electron-forge/shared-types';
@@ -12,6 +12,7 @@ import { readRawPackageJson } from '../util/read-package-json';
 import { findTemplate } from './init-scripts/find-template';
 import { initDirectory } from './init-scripts/init-directory';
 import { initGit } from './init-scripts/init-git';
+import { initLink } from './init-scripts/init-link';
 import { initNPM } from './init-scripts/init-npm';
 
 const d = debug('electron-forge:init');
@@ -73,9 +74,7 @@ export default async ({ dir = process.cwd(), interactive = false, copyCIFiles = 
           await initDirectory(dir, task, force);
           await initGit(dir);
         },
-        options: {
-          persistentOutput: true,
-        },
+        rendererOptions: { persistentOutput: true },
       },
       {
         title: 'Preparing template',
@@ -108,6 +107,7 @@ export default async ({ dir = process.cwd(), interactive = false, copyCIFiles = 
                   }
                   return await installDepList(dir, templateModule.dependencies || [], DepType.PROD, DepVersionRestriction.RANGE);
                 },
+                exitOnError: false,
               },
               {
                 title: 'Installing development dependencies',
@@ -118,17 +118,32 @@ export default async ({ dir = process.cwd(), interactive = false, copyCIFiles = 
                   }
                   await installDepList(dir, templateModule.devDependencies || [], DepType.DEV);
                 },
+                exitOnError: false,
               },
               {
                 title: 'Finalizing dependencies',
                 task: async (_, task) => {
-                  await initNPM(dir, task);
+                  return task.newListr([
+                    {
+                      title: 'Installing common dependencies',
+                      task: async (_, task) => {
+                        await initNPM(dir, task);
+                      },
+                      exitOnError: false,
+                    },
+                    {
+                      title: process.env.LINK_FORGE_DEPENDENCIES_ON_INIT ? 'Linking forge dependencies' : 'Skip linking forge dependencies',
+                      task: async (_, task) => {
+                        await initLink(dir, task);
+                      },
+                      exitOnError: true,
+                    },
+                  ]);
                 },
               },
             ],
             {
               concurrent: false,
-              exitOnError: false,
             }
           );
         },
@@ -136,8 +151,8 @@ export default async ({ dir = process.cwd(), interactive = false, copyCIFiles = 
     ],
     {
       concurrent: false,
-      rendererSilent: !interactive,
-      rendererFallback: Boolean(process.env.DEBUG),
+      silentRendererCondition: !interactive,
+      fallbackRendererCondition: Boolean(process.env.DEBUG) || Boolean(process.env.CI),
     }
   );
 
